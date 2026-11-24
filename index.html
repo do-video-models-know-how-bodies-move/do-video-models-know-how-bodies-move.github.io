@@ -600,7 +600,7 @@
     var hl = makeHL(card, leg);
     // (a)
     var s = document.getElementById('ix1a');
-    var M = { l: 62, r: 16, t: 34, b: 52 }, W = 520, H = 400;
+    var M = { l: 62, r: 16, t: 50, b: 52 }, W = 520, H = 400;
     var mx = F1.xend * 1.04;
     var X = function (v) { return M.l + v / mx * (W - M.l - M.r); }, Y = function (v) { return H - M.b - v / mx * (H - M.t - M.b); };
     txt('(a) Velocity underestimation', { x: M.l, y: 18, 'font-size': 14, 'font-weight': 700 }, s);
@@ -613,7 +613,7 @@
     });
     el('path', { d: 'M' + X(0) + ' ' + Y(mx) + 'V' + Y(0) + 'H' + X(mx), fill: 'none', stroke: '#475569' }, g);
     txt('True speed (cm/s)', { x: (X(0) + X(mx)) / 2, y: H - 12, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, g);
-    txt('Predicted speed (cm/s)', { x: 0, y: 0, transform: 'translate(16 ' + (Y(mx / 2)) + ') rotate(-90)', 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, g);
+    txt('Predicted speed (cm/s)', { x: 10, y: M.t - 10, 'text-anchor': 'start', 'font-size': 12.5, 'font-weight': 700 }, g);
     el('line', { x1: X(0), y1: Y(0), x2: X(F1.xend), y2: Y(F1.xend), stroke: '#94A3B8', 'stroke-width': 1.4, 'stroke-dasharray': '5 4' }, g);
     var ang = Math.atan2(Y(100) - Y(0), X(100) - X(0)) * 180 / Math.PI;
     txt('1:1 ideal', { x: 0, y: 0, transform: 'translate(' + X(0.47 * F1.xend) + ' ' + (Y(0.47 * F1.xend) - 6) + ') rotate(' + ang + ')', 'text-anchor': 'middle', 'font-size': 12, style: 'fill:#64748B' }, g);
@@ -711,14 +711,14 @@
         '<br><span style="opacity:.75">Zero-velocity baseline: 40.8 cm/s</span>';
     }
     function chart(svg, data, ymax, ticks, title, ylab, zero) {
-      var M = { l: 58, r: 14, t: 34, b: 56 }, W = 560, H = 330;
+      var M = { l: 58, r: 14, t: 50, b: 56 }, W = 560, H = 330;
       var gw = (W - M.l - M.r) / 7, bw = gw * 0.25;
       var Y = function (v) { return H - M.b - v / ymax * (H - M.t - M.b); };
       txt(title, { x: M.l, y: 18, 'font-size': 14, 'font-weight': 700 }, svg);
       var g = el('g', {}, svg);
       axisY(g, Y, ticks, M.l, W - M.r);
       el('path', { d: 'M' + M.l + ' ' + M.t + 'V' + Y(0) + 'H' + (W - M.r), fill: 'none', stroke: '#475569' }, g);
-      txt(ylab, { x: 0, y: 0, transform: 'translate(16 ' + (Y(ymax / 2)) + ') rotate(-90)', 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, g);
+      txt(ylab, { x: 10, y: M.t - 10, 'text-anchor': 'start', 'font-size': 12.5, 'font-weight': 700 }, g);
       ENC.forEach(function (e, i) {
         var gx = M.l + gw * i, gg = el('g', { 'data-k': e.k, style: 'cursor:pointer' }, g);
         el('rect', { x: gx, y: M.t - 4, width: gw, height: H - M.t + 4, fill: 'transparent' }, gg);
@@ -791,7 +791,7 @@
     var SIG = { n: 'Posterior \u03c3 (V-JEPA 2, right axis)', c: '#0F766E', v: [4.167, 6.998, 9.599, 14.563, 4.798] };
     var TL = ['t0 (visible)', '+100 ms (occluded)', '+200 ms (occluded)', '+300 ms (occluded)', '+400 ms (visible)'];
     var svg = document.getElementById('ix3b');
-    var M = { l: 58, r: 70, t: 34, b: 60 }, W = 560, H = 360;
+    var M = { l: 58, r: 70, t: 50, b: 60 }, W = 560, H = 360;
     var X = function (i) { return M.l + (i + 0.15) / 4.3 * (W - M.l - M.r); };
     var Y = function (v) { return H - M.b - (v - 7) / 13.5 * (H - M.t - M.b); };
     var Y2 = function (v) { return H - M.b - (v - 3.2) / 12.3 * (H - M.t - M.b); };
@@ -806,8 +806,8 @@
     el('line', { x1: W - M.r, x2: W - M.r, y1: M.t, y2: H - M.b, stroke: '#0F766E', 'stroke-width': 1.4 }, g);
     ['0 (vis.)', '0.1', '0.2', '0.3', '0.4 (vis.)'].forEach(function (s, i) { txt(s, { x: X(i), y: H - M.b + 18, 'text-anchor': 'middle', 'font-size': 12 }, g); });
     txt('Time (s)', { x: (M.l + W - M.r) / 2, y: H - 16, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, g);
-    txt('MPJPE (cm) \u2193', { x: 0, y: 0, transform: 'translate(16 ' + Y(13.75) + ') rotate(-90)', 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, g);
-    txt('Posterior \u03c3 (cm)', { x: 0, y: 0, transform: 'translate(' + (W - 14) + ' ' + Y(13.75) + ') rotate(90)', 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700, style: 'fill:#0F766E' }, g);
+    txt('MPJPE (cm) \u2193', { x: 10, y: M.t - 10, 'text-anchor': 'start', 'font-size': 12.5, 'font-weight': 700 }, g);
+    txt('Posterior \u03c3 (cm)', { x: W - 10, y: M.t - 10, 'text-anchor': 'end', 'font-size': 12.5, 'font-weight': 700, style: 'fill:#0F766E' }, g);
     var guide = el('line', { x1: 0, x2: 0, y1: M.t, y2: H - M.b, stroke: '#0f172a', 'stroke-width': 1.2, 'stroke-dasharray': '3 3', style: 'display:none' }, g);
     var marks = [];
     function series(s, ysc, sq) {
