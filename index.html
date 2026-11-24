@@ -66,7 +66,8 @@
   .caption .title { font-weight:600; }
   .caption .metrics { margin-top:4px; color:var(--fg); }
   .caption .model { color:var(--muted); font-size:13px; }
-  details { margin-top:10px; font-size:13px; color:var(--fg); }
+  details { margin:10px auto 0; font-size:13px; color:var(--fg); }
+  #caption { margin-left:auto; margin-right:auto; }
   details summary { cursor:pointer; color:var(--muted); }
   details ul { margin:6px 0 0 18px; padding:0; }
   .sw { display:inline-block; width:14px; height:4px; vertical-align:middle; margin-right:4px; border-radius:2px; }
@@ -188,6 +189,19 @@
     b.onclick = () => select(i);
     tabs.appendChild(b);
   });
+
+  // Match caption + legend width to the span of the clip tabs.
+  const legendEl = document.querySelector('main > details');
+  function fitTextWidth() {
+    const k = tabs.children; if (!k.length) return;
+    const w = Math.round(k[k.length - 1].getBoundingClientRect().right - k[0].getBoundingClientRect().left);
+    const mw = (tabs.scrollWidth > tabs.clientWidth + 1 || w < 320) ? '' : w + 'px';
+    document.getElementById('caption').style.maxWidth = mw;
+    legendEl.style.maxWidth = mw;
+  }
+  window.addEventListener('resize', fitTextWidth);
+  window.addEventListener('load', fitTextWidth);
+  fitTextWidth();
 
   function key() { return CLIPS[idx].name + (cbBlackout.checked ? '_blackout' : ''); }
 
