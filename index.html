@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Do Video Models Know How Bodies Move? Probing Frozen Visual Representations for Articulated-Motion Forecasting</title>
+<style>
+  :root { --fg:#1d2330; --muted:#6a7385; --line:#e3e7ee; --bg:#fafbfd; --accent:#2f6fde; }
+  * { box-sizing: border-box; }
+  body { margin:0; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color:var(--fg); background:#fff; }
+  header { max-width:1280px; margin:0 auto; padding:40px 20px 12px; }
+  header h1 { font-size:28px; font-weight:650; margin:0; line-height:1.35; text-align:center; }
+  header .anon { text-align:center; color:var(--muted); font-size:16px; margin:14px 0 18px; }
+  header .paperlink { text-align:center; margin:0 0 30px; }
+  header .paperlink a { display:inline-block; padding:11px 22px; border:1px solid var(--line); border-radius:999px; background:#fff; color:var(--accent); font-size:14px; font-weight:600; text-decoration:none; }
+  header .paperlink a:hover { background:#eef4ff; }
+  header .intro { text-align:left; line-height:1.6; max-width:980px; margin:0 auto; }
+  .credits ul { margin:6px 0 0 18px; padding:0; font-size:14px; line-height:1.6; }
+  .contrib { max-width:1280px; margin:28px auto 40px; padding:0 20px; }
+  .contrib h2 { font-size:19px; font-weight:650; margin:0 0 4px; }
+  .contrib > p { color:var(--muted); font-size:14px; margin:0 0 14px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:0 0 16px; }
+  .card h3 { font-size:16px; margin:0 0 6px; }
+  .card h3 .num { display:inline-block; width:24px; height:24px; line-height:24px; text-align:center; border-radius:50%; background:var(--accent); color:#fff; font-size:13px; margin-right:8px; }
+  .card p { margin:0 0 10px; font-size:14px; line-height:1.5; }
+  .card figure { margin:0; text-align:center; }
+  .card img { max-width:100%; height:auto; border-radius:6px; }
+  .card img.narrow { max-width:620px; width:100%; }
+  .card figcaption { font-size:12.5px; color:var(--muted); margin-top:6px; text-align:left; line-height:1.45; }
+  header p { margin:4px 0 0; color:var(--muted); font-size:14px; }
+  main { max-width:1280px; margin:0 auto; padding:6px 20px 30px; }
+  .nav { display:flex; align-items:center; gap:8px; margin:26px 0 16px; }
+  .navbtn { flex:0 0 auto; width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:#fff; font-size:18px; cursor:pointer; color:var(--fg); }
+  .navbtn:hover { background:var(--bg); }
+  .tabs { display:flex; gap:8px; overflow-x:auto; scrollbar-width:thin; padding:2px; flex:1 1 auto; justify-content:safe center; }
+  #key3d { position:absolute; right:10px; bottom:8px; font-size:11.5px; line-height:1.45; color:#374151; background:rgba(255,255,255,.88); border:1px solid var(--line); border-radius:6px; padding:4px 8px; pointer-events:none; text-align:left; }
+  #key3d svg { vertical-align:middle; margin-right:4px; }
+  .tab { flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:4px 10px 4px 4px; border:1px solid var(--line); border-radius:10px; background:#fff; cursor:pointer; font-size:13px; color:var(--fg); white-space:nowrap; }
+  .tab img { width:40px; height:40px; object-fit:cover; border-radius:7px; }
+  .tab.active { border-color:var(--accent); box-shadow:0 0 0 2px rgba(47,111,222,.15); }
+  .stage { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .panel { position:relative; aspect-ratio:1/1; background:#000; border-radius:10px; overflow:hidden; }
+  .panel.viewer { background:var(--bg); border:1px solid var(--line); }
+  .panel video, .panel canvas { width:100%; height:100%; display:block; }
+  .panel video { object-fit:contain; }
+  .panel canvas { cursor:grab; touch-action:none; }
+  .panel canvas:active { cursor:grabbing; }
+  .plabel { position:absolute; left:10px; top:8px; font-size:12px; color:#fff; background:rgba(0,0,0,.45); padding:2px 8px; border-radius:6px; pointer-events:none; }
+  .viewer .plabel { color:var(--muted); background:rgba(255,255,255,.8); }
+  #resetView { position:absolute; right:10px; top:8px; display:none; font-size:12px; padding:4px 10px; border-radius:6px; border:1px solid var(--line); background:#fff; cursor:pointer; }
+  #status3d { position:absolute; left:10px; bottom:8px; font-size:12px; color:var(--muted); pointer-events:none; }
+  #status3d.black { color:#c4441a; font-weight:600; }
+  .controls { display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px; margin:10px 2px 4px; font-size:13px; color:var(--fg); }
+  .controls label { display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
+  .controls select, .controls button { font-size:13px; padding:3px 8px; border:1px solid var(--line); border-radius:6px; background:#fff; cursor:pointer; }
+  .spacer { flex:1 1 auto; }
+  .linkish { background:none !important; border:none !important; color:var(--accent); padding:0 !important; }
+  #panelsWrap { display:none; margin-top:8px; }
+  #panelsWrap video { width:100%; display:block; border:1px solid var(--line); border-radius:10px; background:#fff; }
+  .caption { margin-top:10px; padding:10px 14px; background:var(--bg); border:1px solid var(--line); border-radius:10px; font-size:14px; }
+  .caption .title { font-weight:600; }
+  .caption .metrics { margin-top:4px; color:var(--fg); }
+  .caption .model { color:var(--muted); font-size:13px; }
+  details { margin-top:10px; font-size:13px; color:var(--fg); }
+  details summary { cursor:pointer; color:var(--muted); }
+  details ul { margin:6px 0 0 18px; padding:0; }
+  .sw { display:inline-block; width:14px; height:4px; vertical-align:middle; margin-right:4px; border-radius:2px; }
+  @media (max-width: 760px) { .stage { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Do Video Models Know How Bodies Move?<br>Probing Frozen Visual Representations for Articulated-Motion Forecasting</h1>
+  <div class="anon">Anonymous CVPR 2027 Submission</div>
+  <div class="paperlink"><a href="paper.pdf" target="_blank" rel="noopener">&#128196; Full Paper (with Appendix)</a></div>
+  <p class="intro"><b>Supplementary videos.</b> A frozen video encoder plus a lightweight TSA head predicts per-joint 3D position and velocity from 4-frame clips (10 FPS). All dataset clips are held-out test sequences with ground truth; the last clip is an in-the-wild phone video without ground truth. Playback is 0.5x real time.</p>
+</header>
+<main>
+  <div class="nav">
+    <button class="navbtn" id="prev" title="Previous clip (←)">&#8592;</button>
+    <div class="tabs" id="tabs"></div>
+    <button class="navbtn" id="next" title="Next clip (→)">&#8594;</button>
+  </div>
+
+  <div class="stage" id="stage">
+    <div class="panel"><video id="rgb" muted loop playsinline preload="auto"></video><span class="plabel">input video</span></div>
+    <div class="panel viewer"><canvas id="view3d"></canvas><span class="plabel" id="label3d">predicted 3D pose · drag to rotate, wheel to zoom</span><button id="resetView">Reset view</button><span id="status3d"></span><span id="key3d"></span></div>
+  </div>
+
+  <div class="controls">
+    <button id="playBtn">Pause</button>
+    <label><input type="checkbox" id="cbBlackout"> 300 ms blackouts + Kalman filter</label>
+    <label><input type="checkbox" id="cbPanels"> Show joint speed &amp; direction (8 joints)</label>
+    <label><input type="checkbox" id="cbArrows" checked> Velocity arrows</label>
+    <label>Speed <select id="rate"><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option></select></label>
+    <span class="spacer"></span>
+  </div>
+
+  <div id="panelsWrap"><video id="panels" muted loop playsinline preload="auto"></video></div>
+
+  <div class="caption" id="caption"></div>
+
+  <details>
+    <summary>Legend</summary>
+    <ul>
+      <li><b>Skeleton:</b> left leg <span class="sw" style="background:#1A9850"></span><span class="sw" style="background:#66BD63"></span>, right leg <span class="sw" style="background:#D95F02"></span><span class="sw" style="background:#FDAE61"></span>, left arm <span class="sw" style="background:#2166AC"></span><span class="sw" style="background:#67A9CF"></span>, right arm <span class="sw" style="background:#B2182B"></span><span class="sw" style="background:#EF8A62"></span> (dark = knee/elbow segment, light = ankle/wrist segment; front legs of quadrupeds use the arm colours), spine and head <span class="sw" style="background:#7B3294"></span>. Solid = prediction, faint dashed = ground truth. Pelvis-centred, camera frame; the default view looks through the original camera (x right, y down, depth away).</li>
+      <li><b>Velocity arrows:</b> predicted +100 ms future velocity of each joint, drawn as the displacement over 100 ms (Kalman velocity in the blackout variant); faint dashed arrows are ground truth.</li>
+      <li><b>Blackouts:</b> 300 ms (3 frames) of input removed about every 1.5 s. During a blackout the input is dimmed and the five-target Kalman filter predicts from its state alone; circles show its ±1.5σ posterior.</li>
+      <li><b>Joint speed &amp; direction:</b> scrolling speed of 8 joints (colour = prediction, black dashed = ground truth, gray = probe with sample-and-hold, shaded = blackout) and the predicted velocity direction on unit spheres (right / up / away; dotted black = ground truth).</li>
+      <li><b>Metrics</b> are per clip: MPJPE = mean per-joint position error (pelvis-relative); velocity error = mean per-joint error of the +100 ms future velocity.</li>
+    </ul>
+  </details>
+</main>
+
+<section class="contrib">
+  <h2>Main findings and contributions</h2>
+  <p>Each finding is supported by a figure from the main paper (or a main-paper table plotted as a figure). The figures are interactive: hover over curves, bars, legend entries or panels to highlight.</p>
+  <div class="card ix-card" id="ixc1">
+    <h3><span class="num">1</span>Pretraining determines what is encoded</h3>
+    <p>Image self-distillation is best for static pose, whereas predictive and recurrent video self-supervised encoders carry the most transferable dynamics. Vision&ndash;language and action-supervised encoders retain little motion: they preserve under 0.36&times; of true joint speed, compared with 0.70&times; for RVM.</p>
+    <figure>
+      <div class="ix-legend" id="ix1leg"></div>
+      <div class="ix-two ix-f1"><div><svg id="ix1a" viewBox="0 0 520 400" role="img" aria-label="Predicted versus true speed per encoder"></svg></div><div><svg id="ix1b" viewBox="0 0 440 400" role="img" aria-label="Speed slope per encoder"></svg></div></div>
+      <noscript><img class="narrow" src="figs/fig_speed.png" alt="Predicted versus true joint speed across frozen encoders"></noscript>
+      <figcaption><b>Paper Fig. 2.</b> How much motion do frozen encoders expose? (a) Mean predicted vs. true speed over 23 joints on 1,598 zero-shot EMDB1 clips (TSA head, 0.4 s context at 10 FPS, predicting 100 ms ahead). (b) Underestimation factor (least-squares slope; 1.0 = no shortfall) for four example joints (dots) and all 23 joints (bars).</figcaption></figure>
+  </div>
+  <div class="card ix-card" id="ixc2">
+    <h3><span class="num">2</span>Readout design is critical</h3>
+    <p>Linear probes fail to capture multi-rate joint motion and barely improve on predicting zero velocity, while per-joint cross-attention cuts pose error by over 6 cm. Our Temporal Signed Attention (TSA) head differences features across frames instead of averaging them, giving the lowest mean position and velocity error.</p>
+    <figure>
+      <div class="ix-legend" id="ix2leg"></div>
+      <div class="ix-two ix-f2"><div><svg id="ix2a" viewBox="0 0 560 330" role="img" aria-label="MPJPE by readout head"></svg></div><div><svg id="ix2b" viewBox="0 0 560 330" role="img" aria-label="Velocity error by readout head"></svg></div></div>
+      <noscript><img src="figs/fig_heads.png" alt="Readout heads on zero-shot EMDB1"></noscript>
+      <figcaption><b>Paper Tab. 2, plotted.</b> Readout heads on zero-shot EMDB1 for seven frozen encoders: best linear or spatial-linear probe, Perceiver-style cross-attention, and TSA. Left: MPJPE (cm, lower is better). Right: +100 ms velocity error (cm/s); dashed line: zero-velocity baseline. Mean over encoders: 16.6 / 10.2 / 10.0 cm and 39.6 / 30.5 / 30.1 cm/s.</figcaption></figure>
+  </div>
+  <div class="card ix-card" id="ixc3">
+    <h3><span class="num">3</span>Decoded velocities are genuine dynamical state</h3>
+    <p>During 300 ms blackouts, a baseline that filters per-frame poses alone overshoots (13.23 cm on RVM), whereas a closed-form Kalman filter that fuses the decoded velocities tracks smoothly (9.92 cm) with calibrated uncertainty. Try the &ldquo;300 ms blackouts + Kalman filter&rdquo; checkbox above.</p>
+    <figure>
+      <div class="ix-skel" id="ix3a">
+        <img src="figs/fig5a_0.png" data-t="0" alt="t0, visible"><img src="figs/fig5a_1.png" data-t="1" alt="+100 ms, occluded"><img src="figs/fig5a_2.png" data-t="2" alt="+200 ms, occluded"><img src="figs/fig5a_3.png" data-t="3" alt="+300 ms, occluded"><img src="figs/fig5a_4.png" data-t="4" alt="+400 ms, visible">
+      </div>
+      <div class="ix-legend" id="ix3leg">
+        <span class="ix-li" data-key3="gt" style="cursor:pointer"><svg viewBox="0 0 30 10"><line x1="1" x2="29" y1="5" y2="5" stroke="#0F172A" stroke-width="2.6"/></svg>Ground truth</span>
+        <span class="ix-li" data-key3="zero" style="cursor:pointer"><svg viewBox="0 0 30 10"><line x1="1" x2="29" y1="5" y2="5" stroke="#64748B" stroke-width="2.4" stroke-dasharray="2 3"/></svg>Zero-vel.</span>
+        <span class="ix-li" data-key3="inertial" style="cursor:pointer"><svg viewBox="0 0 30 10"><line x1="1" x2="29" y1="5" y2="5" stroke="#DC2626" stroke-width="2.4" stroke-dasharray="6 3"/></svg>Inertial</span>
+        <span class="ix-li" data-key3="ours" style="cursor:pointer"><svg viewBox="0 0 30 10"><line x1="1" x2="29" y1="5" y2="5" stroke="#1B9E77" stroke-width="2.6"/></svg>Ours (V-JEPA 2, discs/band = posterior &sigma;)</span>
+      </div>
+      <div class="ix-two ix-f3"><div><svg id="ix3b" viewBox="0 0 560 360" role="img" aria-label="Mean error across blackouts"></svg></div><div class="ix-c"><img src="figs/fig5c_web.png" alt="Single-joint trajectory through blackouts"></div></div>
+      <noscript><img src="figs/fig_kalman.png" alt="Tracking through blackouts with five targets"></noscript>
+      <figcaption><b>Paper Fig. 5.</b> Tracking through blackouts with five targets (TSA heads, zero-shot EMDB1). (a) 3D skeletons (V-JEPA 2) across a 300 ms blackout on the EMDB1 cartwheel; discs: posterior std; badges: per-frame MPJPE (cm) for the zero-velocity and inertial baselines and ours. (b) Mean error over 424 blackouts across encoders vs. both baselines. (c) Right-foot trajectory through 200 ms blackouts with &plusmn;1.5&sigma; band.</figcaption></figure>
+  </div>
+  <div class="ix-tip" id="ixtip"></div>
+</section>
+
+
+
+<script src="data/meta.js?v=20261124e"></script>
+<script>
+(function () {
+  'use strict';
+  const CLIPS = window.CLIPS;
+  const rgb = document.getElementById('rgb');
+  const panels = document.getElementById('panels');
+  const canvas = document.getElementById('view3d');
+  const ctx = canvas.getContext('2d');
+  const cbBlackout = document.getElementById('cbBlackout');
+  const cbPanels = document.getElementById('cbPanels');
+  const cbArrows = document.getElementById('cbArrows');
+  const rateSel = document.getElementById('rate');
+  const resetBtn = document.getElementById('resetView');
+  const status3d = document.getElementById('status3d');
+  const playBtn = document.getElementById('playBtn');
+  let idx = 0, data = null;
+  const HASH = new URLSearchParams(location.hash.slice(1));
+  const FORCED = HASH.has('frame') ? parseInt(HASH.get('frame'), 10) : -1;
+  const loaded = {};
+
+  // ---------- clip tabs ----------
+  const tabs = document.getElementById('tabs');
+  CLIPS.forEach((c, i) => {
+    const b = document.createElement('button');
+    b.className = 'tab';
+    b.innerHTML = '<img alt="" src="videos/' + c.name + '_rgb.jpg?v=20261124e"><span>' + c.tab + '</span>';
+    b.onclick = () => select(i);
+    tabs.appendChild(b);
+  });
+
+  function key() { return CLIPS[idx].name + (cbBlackout.checked ? '_blackout' : ''); }
+
+  function loadData(k, cb) {
+    if (window.CLIP_DATA && window.CLIP_DATA[k]) { cb(window.CLIP_DATA[k]); return; }
+    if (loaded[k]) { loaded[k].push(cb); return; }
+    loaded[k] = [cb];
+    const s = document.createElement('script');
+    s.src = 'data/' + k + '.js?v=20261124e';
+    s.onload = () => { const d = window.CLIP_DATA[k]; loaded[k].forEach(f => f(d)); };
+    document.head.appendChild(s);
+  }
+
+  function setSrc(video, src, t, play) {
+    if (video.getAttribute('src') === src) return;
+    video.setAttribute('src', src);
+    video.setAttribute('poster', src.replace('.mp4', '.jpg'));
+    video.addEventListener('loadedmetadata', function once() {
+      video.removeEventListener('loadedmetadata', once);
+      if (t > 0 && isFinite(video.duration)) video.currentTime = Math.min(t, video.duration - 0.05);
+      video.playbackRate = parseFloat(rateSel.value);
+      if (play) video.play().catch(() => {}); else video.pause();
+    });
+  }
+
+  function master() { return rgb; }
+
+  let initT = HASH.has('t') ? parseFloat(HASH.get('t')) : -1;
+  function update(keepTime) {
+    let t = keepTime ? master().currentTime : 0;
+    let playing = !master().paused || !keepTime;
+    if (initT >= 0) { t = initT; playing = false; initT = -1; }
+    const k = key();
+    setSrc(rgb, 'videos/' + k + '_rgb.mp4?v=20261124e', t, playing);
+    if (cbPanels.checked) setSrc(panels, 'videos/' + k + '_panels.mp4?v=20261124e', t, playing);
+    loadData(k, d => { if (key() === k) { data = d; prepare(); draw(); } });
+    [...tabs.children].forEach((el, i) => el.classList.toggle('active', i === idx));
+    tabs.children[idx].scrollIntoView({block: 'nearest', inline: 'nearest'});
+    caption();
+  }
+
+  function select(i) { idx = (i + CLIPS.length) % CLIPS.length; data = null; update(false); }
+
+  function caption() {
+    const c = CLIPS[idx];
+    let m;
+    if (cbBlackout.checked && !c.blackout) {
+      m = 'Blacked-out frames are predicted by the Kalman filter alone (no ground truth, so no error numbers).';
+    } else if (!cbBlackout.checked && !c.clean) {
+      m = 'No ground truth, so no error numbers.';
+    } else if (cbBlackout.checked) {
+      const b = c.blackout;
+      m = 'Blacked-out frames (' + b.frames + '): Kalman filter MPJPE <b>' + b.kf_cm.toFixed(1) +
+          ' cm</b> vs. hold-last-pose ' + b.hold_cm.toFixed(1) + ' cm.';
+    } else {
+      m = 'MPJPE <b>' + c.clean.mpjpe_cm.toFixed(1) + ' cm</b> · +100 ms velocity error <b>' +
+          c.clean.vel_err_cm_s.toFixed(1) + ' cm/s</b>.';
+    }
+    document.getElementById('caption').innerHTML =
+        '<div class="title">' + c.title + '</div><div>' + c.caption + '</div>' +
+        '<div class="metrics">' + m + '</div><div class="model">Model: ' + c.model + '</div>';
+    const hasGT = cbBlackout.checked ? !!c.blackout : !!c.clean;
+    const ln = (dash, col, w) => '<svg width="22" height="8"><line x1="1" y1="4" x2="21" y2="4" stroke="' + col + '" stroke-width="' + w + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : '') + '/></svg>';
+    const ar = (dash, col) => '<svg width="22" height="8"><line x1="1" y1="4" x2="16" y2="4" stroke="' + col + '" stroke-width="1.6"' + (dash ? ' stroke-dasharray="' + dash + '"' : '') + '/><path d="M16 1 L21 4 L16 7 Z" fill="' + col + '"/></svg>';
+    let key = ln('', '#2166AC', 3) + (cbBlackout.checked ? 'Kalman-filtered pose' : 'predicted pose');
+    if (hasGT) key += '<br>' + ln('4 3', 'rgba(33,102,172,.55)', 2) + 'ground-truth pose';
+    if (cbArrows.checked) key += '<br>' + ar('', '#2166AC') + (cbBlackout.checked ? 'Kalman' : 'predicted') + ' velocity (motion over next 100 ms)';
+    if (hasGT && cbArrows.checked) key += '<br>' + ar('3 2', '#6b7280') + 'ground-truth velocity';
+    if (cbBlackout.checked) key += '<br><svg width="22" height="10"><circle cx="11" cy="5" r="4.5" fill="none" stroke="#1A9850"/></svg>±1.5σ uncertainty (blackouts)';
+    document.getElementById('key3d').innerHTML = key;
+    document.getElementById('key3d').style.display = '';
+    document.getElementById('label3d').textContent =
+        (cbBlackout.checked ? 'Kalman posterior 3D pose' : 'predicted 3D pose') + ' · drag to rotate, wheel to zoom';
+  }
+
+  // ---------- controls ----------
+  document.getElementById('prev').onclick = () => select(idx - 1);
+  document.getElementById('next').onclick = () => select(idx + 1);
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'SELECT' || e.target.tagName === 'INPUT' && e.target.type !== 'checkbox') return;
+    if (e.key === 'ArrowLeft') { select(idx - 1); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { select(idx + 1); e.preventDefault(); }
+    if (e.key === ' ') { togglePlay(); e.preventDefault(); }
+  });
+  cbBlackout.onchange = () => { data = null; update(true); };
+  cbArrows.onchange = () => { draw(); caption(); };
+  cbPanels.onchange = () => {
+    document.getElementById('panelsWrap').style.display = cbPanels.checked ? 'block' : 'none';
+    if (cbPanels.checked) { setSrc(panels, 'videos/' + key() + '_panels.mp4?v=20261124e', master().currentTime, !master().paused); sync(true); }
+    else panels.pause();
+  };
+  rateSel.onchange = () => { [rgb, panels].forEach(v => v.playbackRate = parseFloat(rateSel.value)); };
+  function togglePlay() { if (master().paused) master().play().catch(() => {}); else master().pause(); }
+  playBtn.onclick = togglePlay;
+
+  // Keep the panels video (and the inactive one) in sync with the master.
+  function sync(force) {
+    const m = master();
+    if (cbPanels.checked && panels.readyState >= 1) {
+      // Seek only for large drift (seeks are visible as jumps); nudge the rate for small drift.
+      const base = parseFloat(rateSel.value);
+      const d = panels.currentTime - m.currentTime;
+      if (force || m.paused || Math.abs(d) > 0.3) {
+        if (Math.abs(d) > 0.02) panels.currentTime = m.currentTime;
+        panels.playbackRate = base;
+      } else {
+        panels.playbackRate = base * (1 - Math.max(-0.1, Math.min(0.1, 2 * d)));
+      }
+      if (m.paused !== panels.paused) { if (m.paused) panels.pause(); else panels.play().catch(() => {}); }
+    }
+  }
+  let heldForPanels = false;
+  panels.addEventListener('waiting', () => { const m = master(); if (cbPanels.checked && !m.paused) { heldForPanels = true; m.pause(); } });
+  panels.addEventListener('canplay', () => { if (heldForPanels) { heldForPanels = false; sync(true); master().play().catch(() => {}); } });
+  [rgb].forEach(v => {
+    ['play', 'pause', 'seeked', 'ratechange'].forEach(ev => v.addEventListener(ev, () => {
+      if (v !== master()) return;
+      sync(ev === 'seeked');
+      playBtn.textContent = v.paused ? 'Play' : 'Pause';
+    }));
+    v.addEventListener('timeupdate', () => { if (v === master()) sync(false); });
+  });
+
+  // ---------- 3D viewer (Canvas 2D, orbit around the pelvis) ----------
+  // Per-limb palette: left = cool (legs green, arms blue), right = warm (legs orange, arms red),
+  // proximal segments dark, distal light; centre (spine/head) purple.
+  const COL = {LLp: '#1A9850', LLd: '#66BD63', RLp: '#D95F02', RLd: '#FDAE61',
+               LAp: '#2166AC', LAd: '#67A9CF', RAp: '#B2182B', RAd: '#EF8A62', C: '#7B3294'};
+  const GHOST = {};
+  Object.keys(COL).forEach(k => { const h = COL[k]; GHOST[k] = 'rgba(' + parseInt(h.slice(1, 3), 16) + ',' + parseInt(h.slice(3, 5), 16) + ',' + parseInt(h.slice(5, 7), 16) + ',0.5)'; });
+  const view = {yaw: 0, pitch: 0, zoom: 1};
+  let side = [], span = 1000, floorY = 900, anim = null, touched = false;
+
+  function prepare() {
+    side = data.joints.map(n => {
+      const lr = n.startsWith('L_') ? 'L' : n.startsWith('R_') ? 'R' : '';
+      if (!lr) return 'C';
+      const arm = /Collar|Shoulder|Elbow|Wrist|Hand|Front/.test(n);
+      const distal = /Ankle|Foot|Wrist|Hand|Paw/.test(n);
+      return lr + (arm ? 'A' : 'L') + (distal ? 'd' : 'p');
+    });
+    const vals = [], ys = [];
+    (data.gt || []).concat(data.pred).forEach(f => { if (f) for (let i = 0; i < f.length; i++) { vals.push(Math.abs(f[i])); if (i % 3 === 1) ys.push(f[i]); } });
+    vals.sort((a, b) => a - b); ys.sort((a, b) => a - b);
+    span = 1080;  // fixed metric scale (mm) for every clip, so skeleton sizes are comparable across clips
+    floorY = ys[Math.floor(ys.length * 0.99)] + 50;
+  }
+
+  function frameIndex() {
+    const m = master();
+    if (!data) return 0;
+    if (FORCED >= 0 && m.readyState < 2) return Math.min(FORCED, data.num_frames - 1);
+    const f = Math.floor(m.currentTime * data.video_fps / data.repeat + 1e-3);
+    return Math.max(0, Math.min(data.num_frames - 1, f));
+  }
+
+  function rot(p) {
+    // Camera frame: x right, y down, z away. Yaw about the vertical (y) axis,
+    // pitch about the horizontal (x) axis.
+    const cy = Math.cos(view.yaw), sy = Math.sin(view.yaw);
+    const cp = Math.cos(view.pitch), sp = Math.sin(view.pitch);
+    const x1 = cy * p[0] + sy * p[2], z1 = -sy * p[0] + cy * p[2];
+    const y2 = cp * p[1] - sp * z1, z2 = sp * p[1] + cp * z1;
+    return [x1, y2, z2];
+  }
+
+  function proj(p, W, H) {
+    const r = rot(p);
+    const D = span * 6;
+    const s = (Math.min(W, H) * 0.42 / span) * view.zoom * D / (D + r[2]);
+    return [W / 2 + r[0] * s, H * 0.5 + r[1] * s, r[2], s];
+  }
+
+  function pt(arr, j) { return [arr[3 * j], arr[3 * j + 1], arr[3 * j + 2]]; }
+
+  function arrow(a, b, color, width, dashed) {
+    const dx = b[0] - a[0], dy = b[1] - a[1], L = Math.hypot(dx, dy);
+    if (L < 3) return;
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width;
+    ctx.setLineDash(dashed ? [4, 4] : []);
+    ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    ctx.setLineDash([]);
+    const hl = Math.min(10, 0.4 * L), ux = dx / L, uy = dy / L;
+    ctx.beginPath(); ctx.moveTo(b[0], b[1]);
+    ctx.lineTo(b[0] - hl * ux - 0.5 * hl * uy, b[1] - hl * uy + 0.5 * hl * ux);
+    ctx.lineTo(b[0] - hl * ux + 0.5 * hl * uy, b[1] - hl * uy - 0.5 * hl * ux);
+    ctx.closePath(); ctx.fill();
+  }
+
+  function draw() {
+    const dpr = window.devicePixelRatio || 1;
+    const W = canvas.clientWidth, H = canvas.clientHeight;
+    if (canvas.width !== Math.round(W * dpr)) { canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr); }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    if (!data) return;
+    const n = frameIndex();
+    // Ground grid.
+    ctx.strokeStyle = 'rgba(120,130,150,0.18)'; ctx.lineWidth = 1;
+    const g = span * 1.2;
+    for (let k = -4; k <= 4; k++) {
+      const t = g * k / 4;
+      let a = proj([t, floorY, -g], W, H), b = proj([t, floorY, g], W, H);
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      a = proj([-g, floorY, t], W, H); b = proj([g, floorY, t], W, H);
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    }
+    const P = data.pred[n], G = data.gt ? data.gt[n] : null;
+    const black = data.blackout && data.blackout[n];
+    // Ground-truth ghost.
+    if (G) {
+      const gp = data.parents.map((_, j) => proj(pt(G, j), W, H));
+      ctx.setLineDash([5, 5]); ctx.lineWidth = 2.5;
+      data.parents.forEach((p, j) => { if (p < 0) return; ctx.strokeStyle = GHOST[side[j]]; ctx.beginPath(); ctx.moveTo(gp[p][0], gp[p][1]); ctx.lineTo(gp[j][0], gp[j][1]); ctx.stroke(); });
+      ctx.setLineDash([]);
+      if (cbArrows.checked && data.gt_vel && data.gt_vel[n]) {
+        data.key_joints.forEach(j => {
+          const a = pt(G, j), v = pt(data.gt_vel[n], j);
+          arrow(proj(a, W, H), proj([a[0] + 0.1 * v[0], a[1] + 0.1 * v[1], a[2] + 0.1 * v[2]], W, H), 'rgba(40,40,40,0.45)', 1.5, true);
+        });
+      }
+    }
+    if (P) {
+      const pp = data.parents.map((_, j) => proj(pt(P, j), W, H));
+      const bones = [];
+      data.parents.forEach((p, j) => { if (p >= 0) bones.push([0.5 * (pp[p][2] + pp[j][2]), p, j]); });
+      bones.sort((a, b) => b[0] - a[0]);
+      ctx.lineCap = 'round'; ctx.lineWidth = 5;
+      bones.forEach(([_, p, j]) => { ctx.strokeStyle = COL[side[j]]; ctx.beginPath(); ctx.moveTo(pp[p][0], pp[p][1]); ctx.lineTo(pp[j][0], pp[j][1]); ctx.stroke(); });
+      const order = pp.map((q, j) => [q[2], j]).sort((a, b) => b[0] - a[0]);
+      order.forEach(([_, j]) => { ctx.fillStyle = '#1b1f28'; ctx.beginPath(); ctx.arc(pp[j][0], pp[j][1], 5, 0, 7); ctx.fill(); ctx.fillStyle = COL[side[j]]; ctx.beginPath(); ctx.arc(pp[j][0], pp[j][1], 3.6, 0, 7); ctx.fill(); });
+      if (black && data.sigma && data.sigma[n]) {
+        ctx.strokeStyle = 'rgba(60,170,90,0.75)'; ctx.lineWidth = 1.5;
+        data.key_joints.forEach(j => { const s = pt(data.sigma[n], j); const r = 1.5 * Math.hypot(s[0], s[1], s[2]) * pp[j][3]; ctx.beginPath(); ctx.arc(pp[j][0], pp[j][1], Math.max(3, r), 0, 7); ctx.stroke(); });
+      }
+      if (cbArrows.checked && data.vel[n]) {
+        data.key_joints.forEach(j => {
+          const a = pt(P, j), v = pt(data.vel[n], j);
+          arrow(pp[j], proj([a[0] + 0.1 * v[0], a[1] + 0.1 * v[1], a[2] + 0.1 * v[2]], W, H), COL[side[j]], 3, false);
+        });
+      }
+    }
+    status3d.className = black ? 'black' : '';
+    status3d.textContent = !P ? 'warm-up (needs 4 frames)' : black ? 'BLACKOUT: Kalman prediction only' :
+        (data.blackout ? 'observed: Kalman update' : '');
+  }
+
+  // Interaction: drag to rotate, wheel / pinch to zoom, double-click resets.
+  let drag = null, pinch = null;
+  function interacted() { touched = true; resetBtn.style.display = 'block'; draw(); }
+  canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); drag = {x: e.clientX, y: e.clientY, yaw: view.yaw, pitch: view.pitch}; });
+  canvas.addEventListener('pointermove', e => {
+    if (!drag || pinch) return;
+    view.yaw = drag.yaw + (e.clientX - drag.x) * 0.01;
+    view.pitch = Math.max(-1.5, Math.min(1.5, drag.pitch - (e.clientY - drag.y) * 0.01));
+    interacted();
+  });
+  canvas.addEventListener('pointerup', () => { drag = null; });
+  canvas.addEventListener('wheel', e => { e.preventDefault(); view.zoom = Math.max(0.3, Math.min(4, view.zoom * Math.exp(-e.deltaY * 0.0015))); interacted(); }, {passive: false});
+  canvas.addEventListener('touchstart', e => { if (e.touches.length === 2) pinch = {d: Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY), z: view.zoom}; }, {passive: true});
+  canvas.addEventListener('touchmove', e => { if (pinch && e.touches.length === 2) { const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY); view.zoom = Math.max(0.3, Math.min(4, pinch.z * d / pinch.d)); interacted(); } }, {passive: true});
+  canvas.addEventListener('touchend', () => { pinch = null; });
+  function resetView() {
+    const s = {yaw: view.yaw, pitch: view.pitch, zoom: view.zoom}, t0 = performance.now();
+    cancelAnimationFrame(anim);
+    (function step(now) {
+      const u = Math.min(1, (now - t0) / 350), e = 1 - Math.pow(1 - u, 3);
+      view.yaw = s.yaw * (1 - e); view.pitch = s.pitch * (1 - e); view.zoom = s.zoom + (1 - s.zoom) * e;
+      draw();
+      if (u < 1) anim = requestAnimationFrame(step); else { touched = false; resetBtn.style.display = 'none'; }
+    })(t0);
+  }
+  resetBtn.onclick = resetView;
+  canvas.addEventListener('dblclick', resetView);
+  window.addEventListener('resize', draw);
+
+  // Drive the skeleton from the video clock.
+  let lastFrame = -1;
+  function tick() {
+    const f = frameIndex();
+    if (f !== lastFrame) { lastFrame = f; draw(); }
+    if ('requestVideoFrameCallback' in rgb) { /* also refreshed by rVFC */ }
+    requestAnimationFrame(tick);
+  }
+  if ('requestVideoFrameCallback' in rgb) {
+    const onFrame = () => { draw(); rgb.requestVideoFrameCallback(onFrame); };
+    rgb.requestVideoFrameCallback(onFrame);
+  }
+  requestAnimationFrame(tick);
+
+  // Optional deep link: index.html#clip=<name>&blackout=1&yaw=0.8
+  const h = HASH;
+  const start = Math.max(0, CLIPS.findIndex(c => c.name === h.get('clip')));
+  if (h.get('blackout') === '1') cbBlackout.checked = true;
+  if (h.get('panels') === '1') { cbPanels.checked = true; document.getElementById('panelsWrap').style.display = 'block'; }
+  if (h.get('yaw')) { view.yaw = parseFloat(h.get('yaw')); view.pitch = parseFloat(h.get('pitch') || '0.3'); touched = true; resetBtn.style.display = 'block'; }
+  select(start);
+})();
+</script>
+<style>
+  .ix-two { display:grid; gap:44px; align-items:start; margin:4px auto 0; }
+  .ix-f1 { grid-template-columns: 1.2fr 1fr; max-width:1080px; }
+  .ix-f2 { grid-template-columns: 1fr 1fr; max-width:1180px; }
+  .ix-f3 { grid-template-columns: 55fr 45fr; max-width:1180px; align-items:center; }
+  .ix-two svg { width:100%; height:auto; display:block; overflow:visible; font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .ix-two svg text { fill:#1f2937; }
+  .ix-c img { width:100%; }
+  .ix-legend { display:flex; flex-wrap:wrap; justify-content:center; gap:4px 6px; margin:4px 0 6px; font-size:13px; }
+  .ix-legend .ix-li { display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border:1px solid var(--line); border-radius:999px; cursor:default; background:#fff; transition:opacity .15s; user-select:none; }
+  .ix-legend .ix-li svg { width:30px; height:10px; }
+  .ix-legend .ix-li.dim { opacity:.25; }
+  .ix-legend .ix-li.on { border-color:#94a3b8; box-shadow:0 0 0 2px rgba(148,163,184,.25); }
+  .ix-legend .ix-static { cursor:default; color:var(--muted); }
+  .ix-card [data-k] { transition: opacity .15s; }
+  .ix-card [data-k].dim { opacity:.1; }
+  .ix-card .ix-hl { stroke-width:3.4; }
+  .ix-tip { position:fixed; z-index:50; pointer-events:none; background:rgba(17,24,39,.94); color:#fff; font-size:12.5px; line-height:1.45; padding:6px 9px; border-radius:7px; box-shadow:0 4px 14px rgba(0,0,0,.18); display:none; max-width:340px; }
+  .ix-tip b { font-weight:650; }
+  .ix-tip .ix-sw { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:5px; vertical-align:baseline; }
+  .ix-skel { display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+  .ix-skel img { width:calc(20% - 8px); max-width:200px; border-radius:6px; cursor:pointer; outline:2px solid transparent; outline-offset:2px; transition:outline-color .15s, opacity .15s; }
+  .ix-skel img.on { outline-color:#0f766e; }
+  .ix-skel.any img:not(.on) { opacity:.55; }
+  .card img.ix-skleg { display:block; max-width:720px; width:80%; margin:6px auto 0; }
+  @media (max-width: 860px) { .ix-two { grid-template-columns:1fr !important; gap:18px; } }
+</style>
+<script>
+(function () {
+  'use strict';
+  var NS = 'http://www.w3.org/2000/svg';
+  function el(tag, a, p) { var e = document.createElementNS(NS, tag); for (var k in a) e.setAttribute(k, a[k]); if (p) p.appendChild(e); return e; }
+  function txt(s, a, p) { var e = el('text', a, p); e.textContent = s; return e; }
+  function f(v, d) { return v.toFixed(d == null ? 2 : d); }
+  var tip = document.getElementById('ixtip');
+  function showTip(html, x, y) {
+    tip.innerHTML = html; tip.style.display = 'block';
+    var w = tip.offsetWidth, h = tip.offsetHeight, vw = window.innerWidth;
+    var L = x + 14, T = y + 14;
+    if (L + w > vw - 8) L = x - w - 14;
+    if (T + h > window.innerHeight - 8) T = y - h - 14;
+    tip.style.left = Math.max(4, L) + 'px'; tip.style.top = Math.max(4, T) + 'px';
+  }
+  function hideTip() { tip.style.display = 'none'; }
+  function tipAtEl(html, node) { var r = node.getBoundingClientRect(); showTip(html, r.left + r.width / 2, r.top + r.height / 2); }
+  function sw(c) { return '<span class="ix-sw" style="background:' + c + '"></span>'; }
+  function axisY(g, sc, ticks, x0, x1, fmt, opts) {
+    opts = opts || {};
+    ticks.forEach(function (t) {
+      var y = sc(t);
+      if (!opts.nogrid) el('line', { x1: x0, x2: x1, y1: y, y2: y, stroke: '#e5e7eb', 'stroke-dasharray': '2 3' }, g);
+      txt(fmt ? fmt(t) : t, { x: (opts.right ? x1 + 7 : x0 - 7), y: y + 4, 'text-anchor': opts.right ? 'start' : 'end', 'font-size': 12, style: opts.color ? 'fill:' + opts.color : '' }, g);
+    });
+  }
+  // Shared highlight helper: dims all [data-k] in a card that do not match key.
+  function makeHL(card, legend) {
+    return function (key) {
+      var keys = key == null ? null : (Array.isArray(key) ? key : [key]);
+      if (keys) key = keys;
+      card.querySelectorAll('[data-k]').forEach(function (n) {
+        var on = keys != null && keys.indexOf(n.getAttribute('data-k')) >= 0;
+        n.classList.toggle('dim', key != null && !on);
+        if (n.hasAttribute('data-hlw')) n.setAttribute('stroke-width', on ? n.getAttribute('data-hlw') : n.getAttribute('data-w'));
+      });
+      if (legend) legend.querySelectorAll('.ix-li[data-key]').forEach(function (n) {
+        var inK = keys != null && keys.indexOf(n.getAttribute('data-key')) >= 0;
+        n.classList.toggle('dim', keys != null && !inK);
+        n.classList.toggle('on', inK);
+      });
+    };
+  }
+
+  var ENC = [
+    { k: 'rvm', n: 'RVM', c: '#DB2777', p: 'Video SSL', d: '' },
+    { k: 'vjepa', n: 'V-JEPA 2', c: '#1B9E77', p: 'Video SSL', d: '' },
+    { k: 'dino', n: 'DINOv3', c: '#2563EB', p: 'Image SSL', d: '8 3' },
+    { k: 'lila', n: 'LILA', c: '#0891B2', p: 'Video SSL', d: '' },
+    { k: 'gen', n: 'GenCeption', c: '#7C2D12', p: 'Diffusion', d: '8 3 2 3' },
+    { k: 'qwen', n: 'Qwen3-VL', c: '#7C3AED', p: 'VLM', d: '2 3' },
+    { k: 'trec', n: 'TRecViT', c: '#4B5563', p: 'Action-sup.', d: '6 2.5 2 2.5 2 2.5' }
+  ];
+  function legendChip(parent, e, sample) {
+    var li = document.createElement('span'); li.className = 'ix-li'; li.setAttribute('data-key', e.k);
+    li.innerHTML = '<svg viewBox="0 0 30 10">' + sample + '</svg><span style="color:' + e.c + ';font-weight:600">' + e.n + '</span>';
+    parent.appendChild(li); return li;
+  }
+
+  /* ---------------- Figure 1 ---------------- */
+  var F1 = {
+    xend: 229.21,
+    rvm: { s: 0.6965, j: [0.5908, 0.7282, 0.6564, 0.7622], c: [[0, 0], [11.07, 7.76], [39.04, 27.4], [81.23, 58.89], [136.6, 99.95], [229.21, 169.4]] },
+    vjepa: { s: 0.6062, j: [0.4437, 0.6204, 0.5893, 0.7030], c: [[0, 0], [11.07, 6.54], [39.04, 24.4], [81.23, 52.91], [136.6, 92.43], [229.21, 153.28]] },
+    dino: { s: 0.6338, j: [0.5004, 0.6326, 0.5874, 0.7072], c: [[0, 0], [11.07, 7.5], [39.04, 25.64], [81.23, 52.76], [136.6, 90.99], [229.21, 159.41]] },
+    lila: { s: 0.5816, j: [0.4072, 0.5757, 0.5616, 0.6749], c: [[0, 0], [11.07, 6.39], [39.04, 22.26], [81.23, 49.37], [136.6, 87.56], [229.21, 151.07]] },
+    gen: { s: 0.4899, j: [0.3349, 0.5434, 0.4844, 0.5522], c: [[0, 0], [11.07, 6.5], [39.04, 22.49], [81.23, 45.91], [136.6, 74.92], [229.21, 123.3]] },
+    qwen: { s: 0.2592, j: [0.1404, 0.2528, 0.2723, 0.3409], c: [[0, 0], [11.07, 3.43], [39.04, 11.07], [81.23, 24.29], [136.6, 43.94], [229.21, 74.5]] },
+    trec: { s: 0.2107, j: [0.1136, 0.2346, 0.1585, 0.3622], c: [[0, 0], [11.07, 2.46], [39.04, 8.35], [81.23, 19.06], [136.6, 36.06], [229.21, 65.46]] }
+  };
+  var JN = ['Spine', 'Head', 'R Ankle', 'R Wrist'], JC = ['#FFE600', '#00EEFF', '#FF6B00', '#FF1EEA'];
+  var JZ = [0, 2, 1, 3]; // draw order: Spine, Ankle, Head, Wrist
+  function f1tip(e) {
+    var d = F1[e.k];
+    return sw(e.c) + '<b>' + e.n + '</b> <span style="opacity:.75">(' + e.p + ')</span><br>Speed slope, 23 joints: <b>' + f(d.s) + '</b><br>' +
+      JN.map(function (n, i) { return n + ' ' + f(d.j[i]); }).join(' &middot; ');
+  }
+  (function () {
+    var card = document.getElementById('ixc1'), leg = document.getElementById('ix1leg');
+    var hl = makeHL(card, leg);
+    // (a)
+    var s = document.getElementById('ix1a');
+    var M = { l: 62, r: 16, t: 34, b: 52 }, W = 520, H = 400;
+    var mx = F1.xend * 1.04;
+    var X = function (v) { return M.l + v / mx * (W - M.l - M.r); }, Y = function (v) { return H - M.b - v / mx * (H - M.t - M.b); };
+    txt('(a) Velocity underestimation', { x: M.l, y: 18, 'font-size': 14, 'font-weight': 700 }, s);
+    var g = el('g', {}, s);
+    [0, 50, 100, 150, 200].forEach(function (t) {
+      el('line', { x1: X(t), x2: X(t), y1: Y(0), y2: Y(mx), stroke: '#eef0f3' }, g);
+      el('line', { x1: X(0), x2: X(mx), y1: Y(t), y2: Y(t), stroke: '#eef0f3' }, g);
+      txt(t, { x: X(t), y: Y(0) + 18, 'text-anchor': 'middle', 'font-size': 12 }, g);
+      txt(t, { x: X(0) - 8, y: Y(t) + 4, 'text-anchor': 'end', 'font-size': 12 }, g);
+    });
+    el('path', { d: 'M' + X(0) + ' ' + Y(mx) + 'V' + Y(0) + 'H' + X(mx), fill: 'none', stroke: '#475569' }, g);
+    txt('True speed (cm/s)', { x: (X(0) + X(mx)) / 2, y: H - 12, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, g);
+    txt('Predicted speed (cm/s)', { x: 0, y: 0, transform: 'translate(16 ' + (Y(mx / 2)) + ') rotate(-90)', 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, g);
+    el('line', { x1: X(0), y1: Y(0), x2: X(F1.xend), y2: Y(F1.xend), stroke: '#94A3B8', 'stroke-width': 1.4, 'stroke-dasharray': '5 4' }, g);
+    var ang = Math.atan2(Y(100) - Y(0), X(100) - X(0)) * 180 / Math.PI;
+    txt('1:1 ideal', { x: 0, y: 0, transform: 'translate(' + X(0.47 * F1.xend) + ' ' + (Y(0.47 * F1.xend) - 6) + ') rotate(' + ang + ')', 'text-anchor': 'middle', 'font-size': 12, style: 'fill:#64748B' }, g);
+    // Draw low-slope encoders first so the strongest ones are on top.
+    ENC.slice().reverse().forEach(function (e) {
+      var d = F1[e.k], gg = el('g', { 'data-k': e.k, style: 'cursor:pointer' }, g);
+      var pts = d.c.map(function (p) { return X(p[0]) + ',' + Y(p[1]); }).join(' ');
+      el('polyline', { points: pts, fill: 'none', stroke: 'transparent', 'stroke-width': 14 }, gg);
+      el('polyline', { points: pts, fill: 'none', stroke: e.c, 'stroke-width': 2.4, 'data-w': 2.4, 'data-hlw': 4, 'stroke-dasharray': e.d, 'data-k': e.k }, gg);
+      d.c.slice(1).forEach(function (p) {
+        var c = el('circle', { cx: X(p[0]), cy: Y(p[1]), r: 3.6, fill: e.c, stroke: '#fff', 'stroke-width': 1 }, gg);
+        var t = el('title', {}, c); t.textContent = e.n + ': true ' + f(p[0], 1) + ' cm/s, pred ' + f(p[1], 1) + ' cm/s';
+      });
+      gg.addEventListener('mouseenter', function () { hl(e.k); });
+      gg.addEventListener('mousemove', function (ev) { showTip(f1tip(e), ev.clientX, ev.clientY); });
+      gg.addEventListener('mouseleave', function () { hl(null); hideTip(); });
+    });
+    // paradigm legend (static, line style)
+    var PL = [['Video SSL', ''], ['Image SSL', '8 3'], ['Diffusion', '8 3 2 3'], ['VLM', '2 3'], ['Action-sup.', '6 2.5 2 2.5 2 2.5']];
+    var lg = el('g', { transform: 'translate(' + (M.l + 10) + ' ' + (M.t + 4) + ')' }, s);
+    el('rect', { x: 0, y: 0, width: 120, height: 104, rx: 5, fill: 'rgba(255,255,255,.92)', stroke: '#E2E8F0' }, lg);
+    txt('Paradigm', { x: 10, y: 16, 'font-size': 11.5, 'font-weight': 700 }, lg);
+    PL.forEach(function (p, i) {
+      var members = ENC.filter(function (e) { return e.p === p[0]; });
+      var pg = el('g', { style: 'cursor:pointer' }, lg);
+      el('rect', { x: 4, y: 24 + i * 16, width: 112, height: 16, fill: 'transparent' }, pg);
+      el('line', { x1: 10, x2: 40, y1: 32 + i * 16, y2: 32 + i * 16, stroke: '#334155', 'stroke-width': 2, 'stroke-dasharray': p[1] }, pg);
+      var lt = txt(p[0], { x: 47, y: 36 + i * 16, 'font-size': 11.5 }, pg);
+      var tip = '<b>' + p[0] + '</b><br>' + members.map(function (e) { return sw(e.c) + e.n + ': slope <b>' + f(F1[e.k].s) + '</b>'; }).join('<br>');
+      pg.addEventListener('mouseenter', function () { hl(members.map(function (e) { return e.k; })); lt.style.fontWeight = '700'; });
+      pg.addEventListener('mousemove', function (ev) { showTip(tip, ev.clientX, ev.clientY); });
+      pg.addEventListener('mouseleave', function () { hl(null); hideTip(); lt.style.fontWeight = ''; });
+    });
+
+    // (b)
+    var sb = document.getElementById('ix1b');
+    var Mb = { l: 92, r: 18, t: 50, b: 52 }, Wb = 440, Hb = 400, xmax = 0.86;
+    var XB = function (v) { return Mb.l + v / xmax * (Wb - Mb.l - Mb.r); };
+    txt('(b) Slope by joint', { x: Mb.l, y: 18, 'font-size': 14, 'font-weight': 700 }, sb);
+    var order = ENC.slice().sort(function (a, b) { return F1[b.k].s - F1[a.k].s; });
+    var rowH = (Hb - Mb.t - Mb.b) / order.length;
+    var gb = el('g', {}, sb);
+    [0, 0.2, 0.4, 0.6, 0.8].forEach(function (t) {
+      el('line', { x1: XB(t), x2: XB(t), y1: Mb.t, y2: Hb - Mb.b, stroke: '#eef0f3' }, gb);
+      txt(f(t, 1), { x: XB(t), y: Hb - Mb.b + 18, 'text-anchor': 'middle', 'font-size': 12 }, gb);
+    });
+    el('path', { d: 'M' + XB(0) + ' ' + Mb.t + 'V' + (Hb - Mb.b) + 'H' + XB(xmax), fill: 'none', stroke: '#475569' }, gb);
+    txt('Speed slope \u2191 (1.0 = no shortfall)', { x: (XB(0) + XB(xmax)) / 2, y: Hb - 12, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, gb);
+    order.forEach(function (e, i) {
+      var d = F1[e.k], yc = Mb.t + rowH * (i + 0.5), bh = rowH * 0.52;
+      var gg = el('g', { 'data-k': e.k, style: 'cursor:pointer' }, gb);
+      el('rect', { x: 0, y: yc - rowH / 2, width: Wb - Mb.r, height: rowH, fill: 'transparent' }, gg);
+      el('rect', { x: XB(0), y: yc - bh / 2, width: XB(d.s) - XB(0), height: bh, fill: e.c, 'fill-opacity': 0.13, stroke: e.c, 'stroke-width': 1.6, 'stroke-dasharray': e.d }, gg);
+      txt(e.n, { x: Mb.l - 8, y: yc + 4, 'text-anchor': 'end', 'font-size': 12.5, 'font-weight': 700, style: 'fill:' + e.c }, gg);
+      var mn = Math.min.apply(null, d.j), mxj = Math.max.apply(null, d.j);
+      el('line', { x1: XB(mn), x2: XB(mxj), y1: yc, y2: yc, stroke: '#334155', 'stroke-width': 1.4, 'stroke-opacity': 0.75 }, gg);
+      JZ.forEach(function (j) { el('circle', { cx: XB(d.j[j]), cy: yc, r: 5.2, fill: JC[j], stroke: '#0F172A', 'stroke-width': 1 }, gg); });
+      gg.addEventListener('mouseenter', function () { hl(e.k); });
+      gg.addEventListener('mousemove', function (ev) { showTip(f1tip(e), ev.clientX, ev.clientY); });
+      gg.addEventListener('mouseleave', function () { hl(null); hideTip(); });
+    });
+    // dot legend (above plot)
+    var dlg = el('g', {}, sb);
+    var lx = [['Mean of 23 joints', null]].concat(JN.map(function (n, i) { return [n, JC[i]]; }));
+    var cx = 0;
+    lx.forEach(function (it) {
+      if (it[1]) el('circle', { cx: cx + 5, cy: -4, r: 4.5, fill: it[1], stroke: '#0F172A', 'stroke-width': 0.9 }, dlg);
+      else el('rect', { x: cx, y: -9, width: 12, height: 10, fill: '#94A3B8', 'fill-opacity': 0.35, stroke: '#475569' }, dlg);
+      txt(it[0], { x: cx + 15, y: 0, 'font-size': 11 }, dlg);
+      cx += 15 + it[0].length * 5.6 + 10;
+    });
+    dlg.setAttribute('transform', 'translate(' + (Mb.l - 70 + (Wb - Mb.l + 70 - Mb.r - cx) / 2) + ' 38)');
+
+    // HTML legend (encoders) — hoverable
+    ENC.forEach(function (e) {
+      var li = legendChip(leg, e, '<line x1="1" x2="29" y1="5" y2="5" stroke="' + e.c + '" stroke-width="2.6" stroke-dasharray="' + e.d + '"/>');
+      li.addEventListener('mouseenter', function () { hl(e.k); tipAtEl(f1tip(e), li); });
+      li.addEventListener('mouseleave', function () { hl(null); hideTip(); });
+    });
+    window.__ixF1p = function (i) { var r = lg.querySelectorAll('g')[i]; r.dispatchEvent(new Event('mouseenter')); var b = r.getBoundingClientRect(); r.dispatchEvent(new MouseEvent('mousemove', {clientX: b.right, clientY: b.top})); };
+    window.__ixF1 = function (k) { hl(k); var e = ENC.filter(function (x) { return x.k === k; })[0]; if (e) tipAtEl(f1tip(e), leg.querySelector('[data-key="' + k + '"]')); };
+  })();
+
+  /* ---------------- Figure 2 ---------------- */
+  (function () {
+    var card = document.getElementById('ixc2'), leg = document.getElementById('ix2leg');
+    var hl = makeHL(card, null);
+    var POS = [[14.5, 8.3, 7.9], [13.3, 8.1, 7.9], [15.1, 8.5, 8.5], [14.2, 8.4, 8.5], [17.7, 10.8, 10.7], [18.2, 11.5, 11.2], [23.5, 15.9, 15.3]];
+    var VEL = [[37.9, 26.1, 24.5], [37.7, 26.3, 26.6], [40.5, 28.7, 27.8], [39.9, 28.7, 27.7], [39.8, 29.5, 30.4], [40.6, 35.9, 35.9], [40.6, 38.6, 37.5]];
+    var HEADS = ['Linear', 'Perceiver', 'TSA'], OP = [0.28, 0.6, 1.0];
+    function tipHtml(i) {
+      var e = ENC[i];
+      return sw(e.c) + '<b>' + e.n + '</b><br>MPJPE (cm): ' + HEADS.map(function (h, j) { return h + ' <b>' + f(POS[i][j], 1) + '</b>'; }).join(' &middot; ') +
+        '<br>Vel. error (cm/s): ' + HEADS.map(function (h, j) { return h + ' <b>' + f(VEL[i][j], 1) + '</b>'; }).join(' &middot; ') +
+        '<br><span style="opacity:.75">Zero-velocity baseline: 40.8 cm/s</span>';
+    }
+    function chart(svg, data, ymax, ticks, title, ylab, zero) {
+      var M = { l: 58, r: 14, t: 34, b: 56 }, W = 560, H = 330;
+      var gw = (W - M.l - M.r) / 7, bw = gw * 0.25;
+      var Y = function (v) { return H - M.b - v / ymax * (H - M.t - M.b); };
+      txt(title, { x: M.l, y: 18, 'font-size': 14, 'font-weight': 700 }, svg);
+      var g = el('g', {}, svg);
+      axisY(g, Y, ticks, M.l, W - M.r);
+      el('path', { d: 'M' + M.l + ' ' + M.t + 'V' + Y(0) + 'H' + (W - M.r), fill: 'none', stroke: '#475569' }, g);
+      txt(ylab, { x: 0, y: 0, transform: 'translate(16 ' + (Y(ymax / 2)) + ') rotate(-90)', 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, g);
+      ENC.forEach(function (e, i) {
+        var gx = M.l + gw * i, gg = el('g', { 'data-k': e.k, style: 'cursor:pointer' }, g);
+        el('rect', { x: gx, y: M.t - 4, width: gw, height: H - M.t + 4, fill: 'transparent' }, gg);
+        data[i].forEach(function (v, j) {
+          var x = gx + gw / 2 + (j - 1.5) * bw;
+          el('rect', { x: x + 0.8, y: Y(v), width: bw - 1.6, height: Y(0) - Y(v), fill: e.c, 'fill-opacity': OP[j], stroke: e.c, 'stroke-width': 1, class: 'ix-bar', 'data-h': j }, gg);
+          var ht = txt(f(v, 1), { x: x + bw / 2, y: Y(v) - 4, 'text-anchor': 'middle', 'font-size': 9.5, 'font-weight': 600, class: 'ix-hv', 'data-h': j }, g);
+          ht.style.display = 'none';
+        });
+        txt(e.n, { x: gx + gw / 2, y: Y(0) + 17, 'text-anchor': 'middle', 'font-size': 10.5, 'font-weight': 700, style: 'fill:' + e.c }, gg);
+        // values appear on hover
+        var vg = el('g', { class: 'ix-vals', style: 'display:none' }, gg);
+        data[i].forEach(function (v, j) {
+          var x = gx + gw / 2 + (j - 1) * bw;
+          txt(f(v, 1), { x: x, y: Y(v) - 4, 'text-anchor': 'middle', 'font-size': 9.5, 'font-weight': 600 }, vg);
+        });
+        gg.addEventListener('mouseenter', function () { on(i); });
+        gg.addEventListener('mousemove', function (ev) { showTip(tipHtml(i), ev.clientX, ev.clientY); });
+        gg.addEventListener('mouseleave', function () { on(null); hideTip(); });
+      });
+      if (zero) {
+        el('line', { x1: M.l, x2: W - M.r, y1: Y(zero), y2: Y(zero), stroke: '#111827', 'stroke-width': 1.3, 'stroke-dasharray': '6 4' }, g);
+        txt('zero velocity (' + zero + ')', { x: W - M.r, y: Y(zero) - 6, 'text-anchor': 'end', 'font-size': 11.5, style: 'fill:#374151' }, g);
+      }
+    }
+    function on(i) {
+      hl(i == null ? null : ENC[i].k);
+      card.querySelectorAll('.ix-vals').forEach(function (n) { n.style.display = 'none'; });
+      if (i != null) card.querySelectorAll('[data-k="' + ENC[i].k + '"] .ix-vals').forEach(function (n) { n.style.display = ''; });
+    }
+    chart(document.getElementById('ix2a'), POS, 25, [0, 5, 10, 15, 20, 25], 'MPJPE (cm) \u2193', 'MPJPE (cm)', null);
+    chart(document.getElementById('ix2b'), VEL, 45, [0, 10, 20, 30, 40], '+100 ms velocity error (cm/s) \u2193', 'Velocity error (cm/s)', 40.8);
+    function headTip(j) {
+      var mp = POS.reduce(function (a, r) { return a + r[j]; }, 0) / POS.length, mv = VEL.reduce(function (a, r) { return a + r[j]; }, 0) / VEL.length;
+      return '<b>' + HEADS[j] + '</b> (mean over encoders: ' + f(mp, 1) + ' cm, ' + f(mv, 1) + ' cm/s)<br>' +
+        ENC.map(function (e, i) { return sw(e.c) + e.n + ' <b>' + f(POS[i][j], 1) + '</b> cm &middot; <b>' + f(VEL[i][j], 1) + '</b> cm/s'; }).join('<br>');
+    }
+    function onHead(j) {
+      card.querySelectorAll('.ix-bar').forEach(function (r) {
+        var me = +r.getAttribute('data-h') === j;
+        r.style.opacity = (j == null || me) ? '' : '0.12';
+      });
+      card.querySelectorAll('.ix-hv').forEach(function (t) { t.style.display = (j != null && +t.getAttribute('data-h') === j) ? '' : 'none'; });
+      leg.querySelectorAll('.ix-li').forEach(function (n, k) { n.style.opacity = (j == null || k === j) ? '' : '0.4'; });
+    }
+    HEADS.forEach(function (h, j) {
+      var li = document.createElement('span'); li.className = 'ix-li'; li.style.cursor = 'pointer';
+      li.addEventListener('mouseenter', function () { onHead(j); });
+      li.addEventListener('mousemove', function (ev) { showTip(headTip(j), ev.clientX, ev.clientY); });
+      li.addEventListener('mouseleave', function () { onHead(null); hideTip(); });
+      li.addEventListener('click', function (ev) { onHead(j); showTip(headTip(j), ev.clientX, ev.clientY); });
+      li.innerHTML = '<svg viewBox="0 0 30 10"><rect x="8" y="0" width="14" height="10" fill="#4B5563" fill-opacity="' + OP[j] + '" stroke="#4B5563"/></svg>' + (h === 'Linear' ? 'Linear / spatial-linear probe' : h === 'Perceiver' ? 'Perceiver cross-attention' : 'TSA (ours)');
+      leg.appendChild(li);
+    });
+    window.__ixF2h = function (j) { onHead(j); tipAtEl(headTip(j), leg.children[j]); };
+    window.__ixF2 = function (i) { on(i); tipAtEl(tipHtml(i), document.querySelector('#ix2a [data-k="' + ENC[i].k + '"] rect')); };
+  })();
+
+  /* ---------------- Figure 3 ---------------- */
+  (function () {
+    var card = document.getElementById('ixc3');
+    var S = [
+      { n: 'Inertial', c: '#DC2626', d: '7 4', w: 2, v: [7.873, 9.485, 12.825, 17.266, 8.124] },
+      { n: 'Zero-vel.', c: '#64748B', d: '2 3.5', w: 2, v: [7.892, 9.309, 11.585, 13.937, 8.127] },
+      { n: 'Qwen3-VL', c: '#7C3AED', d: '', w: 2, v: [11.323, 12.479, 13.979, 15.652, 11.253] },
+      { n: 'DINOv3', c: '#2563EB', d: '', w: 2.2, v: [8.592, 9.245, 10.588, 12.52, 8.668] },
+      { n: 'V-JEPA 2', c: '#1B9E77', d: '', w: 2.5, v: [7.803, 8.544, 9.883, 11.733, 8.101] },
+      { n: 'RVM', c: '#DB2777', d: '', w: 2.5, v: [7.89, 8.494, 9.674, 11.517, 7.983] }
+    ];
+    var SIG = { n: 'Posterior \u03c3 (V-JEPA 2, right axis)', c: '#0F766E', v: [4.167, 6.998, 9.599, 14.563, 4.798] };
+    var TL = ['t0 (visible)', '+100 ms (occluded)', '+200 ms (occluded)', '+300 ms (occluded)', '+400 ms (visible)'];
+    var svg = document.getElementById('ix3b');
+    var M = { l: 58, r: 70, t: 34, b: 60 }, W = 560, H = 360;
+    var X = function (i) { return M.l + (i + 0.15) / 4.3 * (W - M.l - M.r); };
+    var Y = function (v) { return H - M.b - (v - 7) / 13.5 * (H - M.t - M.b); };
+    var Y2 = function (v) { return H - M.b - (v - 3.2) / 12.3 * (H - M.t - M.b); };
+    txt('(b) Error & uncertainty across 424 blackouts', { x: M.l, y: 18, 'font-size': 14, 'font-weight': 700 }, svg);
+    var g = el('g', {}, svg);
+    el('rect', { x: X(1), y: M.t, width: X(3) - X(1), height: H - M.t - M.b, fill: '#E2E8F0', 'fill-opacity': 0.68 }, g);
+    [1, 3].forEach(function (i) { el('line', { x1: X(i), x2: X(i), y1: M.t, y2: H - M.b, stroke: '#94A3B8', 'stroke-dasharray': '4 3' }, g); });
+    txt('Blackout', { x: X(2), y: Y(7.5), 'text-anchor': 'middle', 'font-size': 12, 'font-style': 'italic', style: 'fill:#475569' }, g);
+    axisY(g, Y, [8, 12, 16, 20], M.l, W - M.r);
+    axisY(g, Y2, [5, 7.5, 10, 12.5, 15], M.l, W - M.r, function (t) { return t.toFixed(1).replace('.0', ''); }, { right: true, nogrid: true, color: '#0F766E' });
+    el('path', { d: 'M' + M.l + ' ' + M.t + 'V' + (H - M.b) + 'H' + (W - M.r) + 'V' + M.t, fill: 'none', stroke: '#475569' }, g);
+    el('line', { x1: W - M.r, x2: W - M.r, y1: M.t, y2: H - M.b, stroke: '#0F766E', 'stroke-width': 1.4 }, g);
+    ['0 (vis.)', '0.1', '0.2', '0.3', '0.4 (vis.)'].forEach(function (s, i) { txt(s, { x: X(i), y: H - M.b + 18, 'text-anchor': 'middle', 'font-size': 12 }, g); });
+    txt('Time (s)', { x: (M.l + W - M.r) / 2, y: H - 16, 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, g);
+    txt('MPJPE (cm) \u2193', { x: 0, y: 0, transform: 'translate(16 ' + Y(13.75) + ') rotate(-90)', 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700 }, g);
+    txt('Posterior \u03c3 (cm)', { x: 0, y: 0, transform: 'translate(' + (W - 14) + ' ' + Y(13.75) + ') rotate(90)', 'text-anchor': 'middle', 'font-size': 13, 'font-weight': 700, style: 'fill:#0F766E' }, g);
+    var guide = el('line', { x1: 0, x2: 0, y1: M.t, y2: H - M.b, stroke: '#0f172a', 'stroke-width': 1.2, 'stroke-dasharray': '3 3', style: 'display:none' }, g);
+    var marks = [];
+    function series(s, ysc, sq) {
+      var pts = s.v.map(function (v, i) { return X(i) + ',' + ysc(v); }).join(' ');
+      el('polyline', { points: pts, fill: 'none', stroke: s.c, 'stroke-width': s.w || 1.8, 'stroke-dasharray': s.d || '' }, g);
+      var ms = s.v.map(function (v, i) {
+        return sq ? el('rect', { x: X(i) - 3.2, y: ysc(v) - 3.2, width: 6.4, height: 6.4, fill: s.c, 'data-s': 3.2 }, g)
+                  : el('circle', { cx: X(i), cy: ysc(v), r: 3.8, fill: s.c, stroke: '#fff', 'stroke-width': 0.8 }, g);
+      });
+      marks.push({ ms: ms, sq: sq, ysc: ysc, s: s });
+    }
+    series({ n: SIG.n, c: SIG.c, d: '8 3 2 3', w: 1.8, v: SIG.v }, Y2, true);
+    S.forEach(function (s) { series(s, Y, false); });
+    // in-chart legend
+    var lg = el('g', { transform: 'translate(' + (M.l + 8) + ' ' + (M.t + 6) + ')' }, svg);
+    var items = S.concat([{ n: 'Posterior \u03c3 (right)', c: SIG.c, d: '8 3 2 3', w: 1.8, sq: true }]);
+    el('rect', { x: 0, y: 0, width: 222, height: 18 * 4 + 8, rx: 5, fill: 'rgba(255,255,255,.93)', stroke: '#CBD5E1' }, lg);
+    items.forEach(function (s, i) {
+      var cx = 8 + (i % 2) * 108, cy = 14 + Math.floor(i / 2) * 18;
+      el('line', { x1: cx, x2: cx + 26, y1: cy, y2: cy, stroke: s.c, 'stroke-width': s.w || 1.8, 'stroke-dasharray': s.d || '' }, lg);
+      if (s.sq) el('rect', { x: cx + 10, y: cy - 3, width: 6, height: 6, fill: s.c }, lg); else el('circle', { cx: cx + 13, cy: cy, r: 3.4, fill: s.c }, lg);
+      txt(s.n, { x: cx + 31, y: cy + 4, 'font-size': 11.5 }, lg);
+    });
+    var imgs = card.querySelectorAll('#ix3a img'), wrap = document.getElementById('ix3a');
+    function tipHtml(i) {
+      var rows = S.slice().sort(function (a, b) { return a.v[i] - b.v[i]; }).map(function (s) { return sw(s.c) + s.n + ': <b>' + f(s.v[i]) + '</b> cm'; });
+      return '<b>t = ' + (i / 10).toFixed(1) + ' s</b> &mdash; ' + TL[i] + '<br>Mean MPJPE over 424 blackouts:<br>' + rows.join('<br>') +
+        '<br>' + sw(SIG.c) + 'Posterior &sigma; (V-JEPA 2): <b>' + f(SIG.v[i]) + '</b> cm';
+    }
+    function on(i) {
+      marks.forEach(function (m) {
+        m.ms.forEach(function (n, j) {
+          var big = i === j;
+          if (m.sq) { var r = big ? 5.5 : 3.2, v = m.s.v[j]; n.setAttribute('x', X(j) - r); n.setAttribute('y', m.ysc(v) - r); n.setAttribute('width', 2 * r); n.setAttribute('height', 2 * r); n.setAttribute('stroke', big ? '#fff' : 'none'); }
+          else { n.setAttribute('r', big ? 7 : 3.8); n.setAttribute('stroke-width', big ? 1.6 : 0.8); }
+        });
+      });
+      if (i == null) { guide.style.display = 'none'; } else { guide.style.display = ''; guide.setAttribute('x1', X(i)); guide.setAttribute('x2', X(i)); }
+      imgs.forEach(function (im, j) { im.classList.toggle('on', i === j); });
+      wrap.classList.toggle('any', i != null);
+    }
+    imgs.forEach(function (im, i) {
+      im.addEventListener('mouseenter', function () { on(i); });
+      im.addEventListener('mousemove', function (ev) { showTip(tipHtml(i), ev.clientX, ev.clientY); });
+      im.addEventListener('mouseleave', function () { on(null); hideTip(); });
+    });
+    // hovering the chart itself snaps to the nearest timestep
+    var hit = el('rect', { x: M.l, y: M.t, width: W - M.l - M.r, height: H - M.t - M.b, fill: 'transparent' }, svg);
+    hit.addEventListener('mousemove', function (ev) {
+      var r = svg.getBoundingClientRect(), vx = (ev.clientX - r.left) / r.width * W;
+      var i = Math.max(0, Math.min(4, Math.round((vx - M.l) / (W - M.l - M.r) * 4.3 - 0.15)));
+      on(i); showTip(tipHtml(i), ev.clientX, ev.clientY);
+    });
+    hit.addEventListener('mouseleave', function () { on(null); hideTip(); });
+    window.__ixF3 = function (i) { on(i); var r = svg.getBoundingClientRect(); showTip(tipHtml(i), r.left + X(i) / W * r.width + 10, r.top + 20); };
+  })();
+
+
+  /* Fig 3 legend: hover highlights a series in panels (a) and (c) by swapping to pre-rendered variants. */
+  (function () {
+    var leg = document.getElementById('ix3leg'); if (!leg) return;
+    var aImgs = document.querySelectorAll('#ix3a img'), cImg = document.querySelector('#ixc3 .ix-c img');
+    var base = { a: [].map.call(aImgs, function (im) { return im.getAttribute('src'); }), c: cImg ? cImg.getAttribute('src') : null };
+    var ok = {};
+    ['gt', 'zero', 'inertial', 'ours'].forEach(function (k) {   // preload; enable a key only if all its variants exist
+      var srcs = [].map.call(aImgs, function (im, i) { return 'figs/fig5a_' + i + '_' + k + '.png'; });
+      if (cImg) srcs.push('figs/fig5c_web_' + k + '.png');
+      var left = srcs.length;
+      srcs.forEach(function (u) { var im = new Image(); im.onload = function () { if (--left === 0) ok[k] = true; }; im.src = u; });
+    });
+    function set(k) {
+      var use = k && ok[k];
+      [].forEach.call(aImgs, function (im, i) { im.setAttribute('src', use ? 'figs/fig5a_' + i + '_' + k + '.png' : base.a[i]); });
+      if (cImg) cImg.setAttribute('src', use ? 'figs/fig5c_web_' + k + '.png' : base.c);
+      [].forEach.call(leg.children, function (n) { n.classList.toggle('dim', !!k && n.getAttribute('data-key3') !== k); n.classList.toggle('on', !!k && n.getAttribute('data-key3') === k); });
+    }
+    [].forEach.call(leg.children, function (n) {
+      n.addEventListener('mouseenter', function () { set(n.getAttribute('data-key3')); });
+      n.addEventListener('mouseleave', function () { set(null); });
+      n.addEventListener('click', function () { set(n.getAttribute('data-key3')); });
+    });
+    window.__ixF3leg = set;
+  })();
+  // Test hook: #ixhover=f1:rvm | f2:3 | f3:2 simulates a hover state (used for screenshots).
+  var m = /ixhover=f([123][hpl]?):([\w-]+)/.exec(location.hash);
+  if (m) {
+    var id = { '3l': 'ixc3', '1p': 'ixc1', 1: 'ixc1', 2: 'ixc2', '2h': 'ixc2', 3: 'ixc3' }[m[1]];
+    if (/ixscroll/.test(location.hash)) document.getElementById(id).scrollIntoView();
+    setTimeout(function () { if (m[1] === '1') window.__ixF1(m[2]); else if (m[1] === '2') window.__ixF2(+m[2]); else if (m[1] === '2h') window.__ixF2h(+m[2]); else if (m[1] === '1p') window.__ixF1p(+m[2]); else if (m[1] === '3l') window.__ixF3leg(m[2]); else window.__ixF3(+m[2]); }, 50);
+  }
+})();
+</script>
+</body>
+</html>
