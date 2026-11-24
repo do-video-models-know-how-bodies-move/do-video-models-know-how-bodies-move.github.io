@@ -50,7 +50,12 @@
   #resetView { position:absolute; right:10px; top:8px; display:none; font-size:12px; padding:4px 10px; border-radius:6px; border:1px solid var(--line); background:#fff; cursor:pointer; }
   #status3d { position:absolute; left:10px; bottom:8px; font-size:12px; color:var(--muted); pointer-events:none; }
   #status3d.black { color:#c4441a; font-weight:600; }
-  .controls { display:flex; flex-wrap:wrap; align-items:center; gap:6px 18px; margin:10px 2px 4px; font-size:13px; color:var(--fg); }
+  .controls { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:6px 22px; margin:12px 2px 6px; font-size:13px; color:var(--fg); }
+  .playov { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:68px; height:68px; border:none; border-radius:50%; background:rgba(0,0,0,.55); cursor:pointer; display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .25s; padding:0; }
+  .panel:hover .playov { opacity:1; }
+  .playov.show { opacity:1; transition:none; }
+  .playov:hover { background:rgba(0,0,0,.72); }
+  #rgb { cursor:pointer; }
   .controls label { display:flex; align-items:center; gap:6px; cursor:pointer; user-select:none; }
   .controls select, .controls button { font-size:13px; padding:3px 8px; border:1px solid var(--line); border-radius:6px; background:#fff; cursor:pointer; }
   .spacer { flex:1 1 auto; }
@@ -72,7 +77,7 @@
 <header>
   <h1>Do Video Models Know How Bodies Move?<br>Probing Frozen Visual Representations for Articulated-Motion Forecasting</h1>
   <div class="anon">Anonymous CVPR 2027 Submission</div>
-  <div class="paperlink"><a href="paper.pdf" target="_blank" rel="noopener">&#128196; Full Paper (with Appendix)</a></div>
+  <div class="paperlink"><a href="paper.pdf" target="_blank" rel="noopener">&#128196; Paper PDF</a></div>
   <p class="intro"><b>Supplementary videos.</b> A frozen video encoder plus a lightweight TSA head predicts per-joint 3D position and velocity from 4-frame clips (10 FPS). All dataset clips are held-out test sequences with ground truth; the last clip is an in-the-wild phone video without ground truth. Playback is 0.5x real time.</p>
 </header>
 <main>
@@ -83,17 +88,15 @@
   </div>
 
   <div class="stage" id="stage">
-    <div class="panel"><video id="rgb" muted loop playsinline preload="auto"></video><span class="plabel">input video</span></div>
+    <div class="panel"><video id="rgb" muted loop playsinline preload="auto"></video><span class="plabel">input video</span><button id="playBtn" class="playov" aria-label="Pause" title="Play / pause (space)"><svg viewBox="0 0 24 24" width="30" height="30"><path d="M6 5h4v14H6zM14 5h4v14h-4z" fill="#fff"/></svg></button></div>
     <div class="panel viewer"><canvas id="view3d"></canvas><span class="plabel" id="label3d">predicted 3D pose · drag to rotate, wheel to zoom</span><button id="resetView">Reset view</button><span id="status3d"></span><span id="key3d"></span></div>
   </div>
 
   <div class="controls">
-    <button id="playBtn">Pause</button>
     <label><input type="checkbox" id="cbBlackout"> 300 ms blackouts + Kalman filter</label>
     <label><input type="checkbox" id="cbPanels"> Show joint speed &amp; direction (8 joints)</label>
     <label><input type="checkbox" id="cbArrows" checked> Velocity arrows</label>
     <label>Speed <select id="rate"><option value="0.25">0.25x</option><option value="0.5">0.5x</option><option value="1" selected>1x</option><option value="2">2x</option></select></label>
-    <span class="spacer"></span>
   </div>
 
   <div id="panelsWrap"><video id="panels" muted loop playsinline preload="auto"></video></div>
@@ -278,7 +281,8 @@
   };
   rateSel.onchange = () => { [rgb, panels].forEach(v => v.playbackRate = parseFloat(rateSel.value)); };
   function togglePlay() { if (master().paused) master().play().catch(() => {}); else master().pause(); }
-  playBtn.onclick = togglePlay;
+  playBtn.onclick = (e) => { e.stopPropagation(); togglePlay(); };
+  rgb.addEventListener('click', togglePlay);
 
   // Keep the panels video (and the inactive one) in sync with the master.
   function sync(force) {
@@ -303,7 +307,9 @@
     ['play', 'pause', 'seeked', 'ratechange'].forEach(ev => v.addEventListener(ev, () => {
       if (v !== master()) return;
       sync(ev === 'seeked');
-      playBtn.textContent = v.paused ? 'Play' : 'Pause';
+      playBtn.innerHTML = v.paused ? '<svg viewBox="0 0 24 24" width="30" height="30"><path d="M8 5v14l11-7z" fill="#fff"/></svg>' : '<svg viewBox="0 0 24 24" width="30" height="30"><path d="M6 5h4v14H6zM14 5h4v14h-4z" fill="#fff"/></svg>';
+      playBtn.setAttribute('aria-label', v.paused ? 'Play' : 'Pause');
+      playBtn.classList.toggle('show', v.paused);
     }));
     v.addEventListener('timeupdate', () => { if (v === master()) sync(false); });
   });
